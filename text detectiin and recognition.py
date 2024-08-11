@@ -1,34 +1,49 @@
 import cv2
-import pytesseract
+import numpy as np
+import os
+from datetime import datetime
 
-pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+# Step 1: Load the input image
+image_path = 'C:/Users/singh/Downloads/text detection.png'
+print(f"Loading image from {image_path}...")
+image = cv2.imread(image_path)
 
-img = cv2.imread('C:/Users/singh/Downloads/text detection.png')
-
-if img is None:
-    print("Error: Image not found or unable to load.")
+# Check if the image was loaded successfully
+if image is None:
+    print("Error: Image not found or unable to load!")
     exit()
 
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+print("Image loaded successfully.\n")
 
-ret, threshl = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU | cv2.THRESH_BINARY_INV)
+# Step 2: Convert the image to grayscale
+print("Converting image to grayscale...")
+gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+print("Image converted to grayscale.\n")
 
-rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (18,18))
+# Step 3: Apply MSER to detect text regions
+print("Applying MSER to detect text regions...")
+mser = cv2.MSER_create()
+regions, _ = mser.detectRegions(gray_image)
 
-dilation = cv2.dilate(threshl, rect_kernel, iterations=1)
-contours, hierarchy = cv2.findContours(dilation, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+# Step 4: Draw bounding boxes around detected regions
+print("Drawing bounding boxes around detected regions...\n")
+for region in regions:
+    hull = cv2.convexHull(region.reshape(-1, 1, 2))
+    x, y, w, h = cv2.boundingRect(hull)
+    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-im2 = img.copy()
+print("All detected text regions have been marked with bounding boxes.\n")
 
-with open('recognized.txt', 'w') as file:
-    file.write("")
+# Step 5: Save the output image
+output_dir = 'C:/Users/singh/Downloads/'
+output_filename = f"text_detection_mser_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+output_path = os.path.join(output_dir, output_filename)
+cv2.imwrite(output_path, image)
+print(f"Output image saved as {output_filename} in {output_dir}.\n")
 
-for cnt in contours:
-    x, y, w, h = cv2.boundingRect(cnt)
-    rect = cv2.rectangle(im2, (x, y), (x + w, y + h), (0, 255, 0), 2)
-    cropped = im2[y:y + h, x:x + w]
+# Step 6: Display the output image with bounding boxes
+cv2.imshow("Text Detection using MSER", image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 
-    with open('recognized.txt', 'a') as file:
-        text = pytesseract.image_to_string(cropped)
-        file.write(text)
-        file.write("\n")
+print("Script execution completed successfully.")
